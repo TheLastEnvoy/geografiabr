@@ -1,81 +1,85 @@
 // Token de acesso Mapbox
 mapboxgl.accessToken = 'pk.eyJ1IjoidGhlbGFzdGVudm95IiwiYSI6ImNtODdhbDBwYTBkZG8yanBzNjlidXk0ZDUifQ.syn5du944H7p5DPH81zIKA';
 
+// Inicializar o mapa
 const map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/thelastenvoy/cm87jsb2t00he01qvd2vnf9n4',
-    center: [-55.0, -10.0], // Centro do Brasil
+    center: [-55.0, -10.0],
     zoom: 4
 });
 
-// Adicionar controles de navegação
+// Adicionar controles básicos
 map.addControl(new mapboxgl.NavigationControl());
-map.addControl(new mapboxgl.FullscreenControl());
 
-// Popup para mostrar informações
+// Criar um popup vazio
 const popup = new mapboxgl.Popup({
     closeButton: true,
-    closeOnClick: true,
-    maxWidth: '300px'
+    closeOnClick: true
 });
 
+// Quando o mapa carregar
 map.on('load', function() {
     console.log('Mapa carregado com sucesso!');
 
-    // Configurar interatividade para cada camada
-    const camadas = [
-        {id: 'limites_ucs_federais_27022025-61kuqr', nome: 'Unidades de Conservação Federais'},
-        {id: 'tis_poligonais_44n4cs', nome: 'Terras Indígenas'},
-        {id: 'pasbr-geo-ceazcm', nome: 'Áreas Protegidas'},
-        {id: 'baseHidroviariaBR_dpjkx7', nome: 'Hidrovias'},
-        {id: 'aeroportosBR-c3uyet', nome: 'Aeroportos'},
-        {id: 'baseFerroviariaBR-5wy7Id', nome: 'Ferrovias'},
-        {id: 'rodoviasBR202501A-10ccdk', nome: 'Rodovias'}
+    // Lista de IDs de camadas para adicionar interatividade
+    const layerIds = [
+        'limites_ucs_federais_27022025-61kuqr',
+        'tis_poligonais_44n4cs',
+        'pasbr-geo-ceazcm',
+        'baseHidroviariaBR_dpjkx7',
+        'aeroportosBR-c3uyet',
+        'baseFerroviariaBR-5wy7Id',
+        'rodoviasBR202501A-10ccdk'
     ];
 
-    // Adicionar interatividade para cada camada
-    camadas.forEach(camada => {
-        // Mudar o cursor para indicar que o elemento é clicável
-        map.on('mouseenter', camada.id, () => {
-            map.getCanvas().style.cursor = 'pointer';
-        });
+    // Obter todas as camadas do mapa
+    const layers = map.getStyle().layers;
 
-        map.on('mouseleave', camada.id, () => {
-            map.getCanvas().style.cursor = '';
-        });
+    // Para cada camada no mapa
+    layers.forEach(layer => {
+        // Verificar se a camada tem um ID que contém algum dos nossos IDs de interesse
+        const matchingId = layerIds.find(id => layer.id.includes(id));
 
-        // Mostrar popup ao clicar
-        map.on('click', camada.id, (e) => {
-            // Obter as coordenadas do clique
-            const coordinates = e.lngLat;
+        if (matchingId) {
+            // Adicionar evento de clique para esta camada
+            map.on('click', layer.id, function(e) {
+                // Obter as coordenadas do clique
+                const coordinates = e.lngLat;
 
-            // Obter as propriedades do elemento clicado
-            const properties = e.features[0].properties;
+                // Obter as propriedades do elemento clicado
+                const properties = e.features[0].properties;
 
-            // Criar o conteúdo HTML do popup
-            let html = `<h3>${camada.nome}</h3><div class="popup-content">`;
+                // Criar conteúdo HTML para o popup
+                let html = `<h3>${layer.id}</h3><div class="popup-content">`;
 
-            // Adicionar todas as propriedades disponíveis
-            for (const [key, value] of Object.entries(properties)) {
-                if (value && value !== 'null' && value !== '') {
-                    html += `<strong>${formatarNomePropriedade(key)}:</strong> ${value}<br>`;
+                // Adicionar todas as propriedades disponíveis
+                for (const key in properties) {
+                    if (properties[key] && properties[key] !== 'null') {
+                        html += `<strong>${key}:</strong> ${properties[key]}<br>`;
+                    }
                 }
-            }
 
-            html += '</div>';
+                html += '</div>';
 
-            // Mostrar o popup
-            popup.setLngLat(coordinates)
-                .setHTML(html)
-                .addTo(map);
-        });
+                // Mostrar o popup
+                popup.setLngLat(coordinates)
+                    .setHTML(html)
+                    .addTo(map);
+
+                console.log('Popup exibido para:', layer.id);
+            });
+
+            // Mudar o cursor quando passar sobre elementos desta camada
+            map.on('mouseenter', layer.id, function() {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+
+            map.on('mouseleave', layer.id, function() {
+                map.getCanvas().style.cursor = '';
+            });
+
+            console.log('Interatividade adicionada para camada:', layer.id);
+        }
     });
 });
-
-// Função para formatar nomes de propriedades
-function formatarNomePropriedade(nome) {
-    // Substituir underscores por espaços e capitalizar cada palavra
-    return nome
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, l => l.toUpperCase());
-}
