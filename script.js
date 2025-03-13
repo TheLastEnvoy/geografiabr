@@ -22,28 +22,38 @@ const popup = new mapboxgl.Popup({
 map.on('load', function() {
     console.log('Mapa carregado com sucesso!');
 
-    // Lista de IDs de camadas para adicionar interatividade
-    const layerIds = [
-        'limites_ucs_federais_27022025-61kuqr',
-        'tis_poligonais_44n4cs',
-        'pasbr-geo-ceazcm',
-        'baseHidroviariaBR_dpjkx7',
-        'aeroportosBR-c3uyet',
-        'baseFerroviariaBR-5wy7ld',
-        'rodoviasBR202501A-10ccdk'
+    // Lista de camadas com IDs corretos e nomes amigáveis
+    const camadas = [
+        {id: 'limites_ucs_federais_27022025-61kuqr', nome: 'Unidades de Conservação Federais'},
+        {id: 'tis_poligonais_44n4cs', nome: 'Terras Indígenas'},
+        {id: 'pasbr-geo-ceazcm', nome: 'Áreas Protegidas'},
+        {id: 'baseHidroviariaBR_dpjkx7', nome: 'Hidrovias'},
+        {id: 'aeroportosBR-c3uyet', nome: 'Aeroportos'},
+        {id: 'baseFerroviariaBR-5wy7ld', nome: 'Ferrovias'}, // ID corrigido
+        {id: 'rodoviasBR202501A-10ccdk', nome: 'Rodovias'}
     ];
 
-    // Obter todas as camadas do mapa
+    // Listar todas as camadas do mapa para debug
     const layers = map.getStyle().layers;
+    console.log('Camadas disponíveis no mapa:', layers.map(layer => layer.id));
 
-    // Para cada camada no mapa
-    layers.forEach(layer => {
-        // Verificar se a camada tem um ID que contém algum dos nossos IDs de interesse
-        const matchingId = layerIds.find(id => layer.id.includes(id));
+    // Para cada uma das nossas camadas de interesse
+    camadas.forEach(camada => {
+        // Encontrar todas as camadas do mapa que contêm nosso ID de interesse
+        const matchingLayers = layers.filter(layer => layer.id.includes(camada.id));
 
-        if (matchingId) {
-            // Adicionar evento de clique para esta camada
-            map.on('click', layer.id, function(e) {
+        console.log(`Camadas encontradas para ${camada.nome}:`, matchingLayers.map(l => l.id));
+
+        // Para cada camada correspondente, adicionar interatividade
+        matchingLayers.forEach(matchingLayer => {
+            // Adicionar evento de clique
+            map.on('click', matchingLayer.id, function(e) {
+                // Verificar se temos features
+                if (!e.features || e.features.length === 0) {
+                    console.log('Nenhuma feature encontrada no clique');
+                    return;
+                }
+
                 // Obter as coordenadas do clique
                 const coordinates = e.lngLat;
 
@@ -51,12 +61,12 @@ map.on('load', function() {
                 const properties = e.features[0].properties;
 
                 // Criar conteúdo HTML para o popup
-                let html = `<h3>${layer.id}</h3><div class="popup-content">`;
+                let html = `<h3>${camada.nome}</h3><div class="popup-content">`;
 
                 // Adicionar todas as propriedades disponíveis
                 for (const key in properties) {
-                    if (properties[key] && properties[key] !== 'null') {
-                        html += `<strong>${key}:</strong> ${properties[key]}<br>`;
+                    if (properties[key] && properties[key] !== 'null' && properties[key] !== '') {
+                        html += `<strong>${formatarNomePropriedade(key)}:</strong> ${properties[key]}`;
                     }
                 }
 
@@ -67,19 +77,27 @@ map.on('load', function() {
                     .setHTML(html)
                     .addTo(map);
 
-                console.log('Popup exibido para:', layer.id);
+                console.log('Popup exibido para:', camada.nome);
             });
 
             // Mudar o cursor quando passar sobre elementos desta camada
-            map.on('mouseenter', layer.id, function() {
+            map.on('mouseenter', matchingLayer.id, function() {
                 map.getCanvas().style.cursor = 'pointer';
             });
 
-            map.on('mouseleave', layer.id, function() {
+            map.on('mouseleave', matchingLayer.id, function() {
                 map.getCanvas().style.cursor = '';
             });
 
-            console.log('Interatividade adicionada para camada:', layer.id);
-        }
+            console.log('Interatividade adicionada para camada:', matchingLayer.id);
+        });
     });
 });
+
+// Função para formatar nomes de propriedades
+function formatarNomePropriedade(nome) {
+    // Substituir underscores por espaços e capitalizar cada palavra
+    return nome
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase());
+}
