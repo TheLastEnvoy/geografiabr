@@ -3,14 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa do Brasil - Infraestrutura e Áreas Protegidas</title>
+    <title>Mapa Interativo do Brasil</title>
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .mapboxgl-popup-content {
+            padding: 15px;
+            max-width: 300px;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .mapboxgl-popup-content h3 {
+            margin: 0 0 10px 0;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .popup-content {
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+    </style>
 </head>
 <body>
     <div id="map"></div>
 
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
-    <script src="script.js"></script>
+    <script>
+        // Token de acesso Mapbox
+        mapboxgl.accessToken = 'pk.eyJ1IjoidGhlbGFzdGVudm95IiwiYSI6ImNtODdhbDBwYTBkZG8yanBzNjlidXk0ZDUifQ.syn5du944H7p5DPH81zIKA';
+
+        // Inicializar o mapa
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/thelastenvoy/cm87jsb2t00he01qvd2vnf9n4',
+            center: [-55.0, -10.0],
+            zoom: 4
+        });
+
+        // Adicionar controles básicos
+        map.addControl(new mapboxgl.NavigationControl());
+
+        // Criar um popup vazio
+        const popup = new mapboxgl.Popup({
+            closeButton: true,
+            closeOnClick: true
+        });
+
+        // Função para formatar nomes de propriedades
+        function formatarNomePropriedade(nome) {
+            return nome
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        // Quando o mapa carregar
+        map.on('load', function() {
+            console.log('Mapa carregado com sucesso!');
+
+            // Adicionar um handler de clique para todo o mapa
+            map.on('click', function(e) {
+                // Fazer um query de features em todas as camadas no ponto clicado
+                const features = map.queryRenderedFeatures(e.point);
+
+                // Se não encontrou nenhuma feature, sair
+                if (!features.length) {
+                    return;
+                }
+
+                // Pegar a primeira feature (a que está no topo)
+                const feature = features[0];
+                console.log('Feature clicada:', feature);
+
+                // Determinar o tipo de camada
+                let tipoLayer = 'Camada';
+
+                // Identificar o tipo de camada com base no ID
+                if (feature.layer.id.includes('ucs_federais')) {
+                    tipoLayer = 'Unidade de Conservação Federal';
+                } else if (feature.layer.id.includes('tis_poligonais')) {
+                    tipoLayer = 'Terra Indígena';
+                } else if (feature.layer.id.includes('pasbr-geo')) {
+                    tipoLayer = 'Área Protegida';
+                } else if (feature.layer.id.includes('Hidroviaria')) {
+                    tipoLayer = 'Hidrovia';
+                } else if (feature.layer.id.includes('aeroportos')) {
+                    tipoLayer = 'Aeroporto';
+                } else if (feature.layer.id.includes('Ferroviaria')) {
+                    tipoLayer = 'Ferrovia';
+                } else if (feature.layer.id.includes('rodovias')) {
+                    tipoLayer = 'Rodovia';
+                }
+
+                // Criar conteúdo HTML para o popup
+                let html = `<h3>${tipoLayer}</h3><div class="popup-content">`;
+
+                // Adicionar todas as propriedades disponíveis
+                for (const key in feature.properties) {
+                    if (feature.properties[key] && 
+                        feature.properties[key] !== 'null' && 
+                        feature.properties[key] !== '') {
+                        html += `<strong>${formatarNomePropriedade(key)}:</strong> ${feature.properties[key]}<br>`;
+                    }
+                }
+
+                html += '</div>';
+
+                // Mostrar o popup
+                popup.setLngLat(e.lngLat)
+                    .setHTML(html)
+                    .addTo(map);
+
+                console.log('Popup exibido para:', tipoLayer);
+            });
+
+            // Mudar o cursor quando passar sobre elementos clicáveis
+            map.on('mousemove', function(e) {
+                const features = map.queryRenderedFeatures(e.point);
+                map.getCanvas().style.cursor = features.length ? 'pointer' : '';
+            });
+        });
+    </script>
 </body>
 </html>
