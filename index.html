@@ -38,10 +38,25 @@
             font-size: 13px;
             line-height: 1.4;
         }
+
+        .debug-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 12px;
+            max-width: 300px;
+            max-height: 100px;
+            overflow: auto;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div id="map"></div>
+    <div id="debug-info" class="debug-info"></div>
 
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
     <script>
@@ -72,9 +87,52 @@
                 .replace(/\b\w/g, l => l.toUpperCase());
         }
 
+        // Definição das camadas e seus identificadores
+        const camadas = [
+            {
+                id: 'limites_ucs_federais_27022025-61kuqr',
+                nome: 'Unidade de Conservação Federal',
+                identificadores: ['ucs_federais', 'limites_ucs']
+            },
+            {
+                id: 'tis_poligonais_44n4cs',
+                nome: 'Terra Indígena',
+                identificadores: ['tis_poligonais', 'terra_indigena']
+            },
+            {
+                id: 'pasbr-geo-ceazcm',
+                nome: 'Área Protegida',
+                identificadores: ['pasbr-geo', 'area_protegida']
+            },
+            {
+                id: 'baseHidroviariaBR_dpjkx7',
+                nome: 'Hidrovia',
+                identificadores: ['hidroviaria', 'hidrovia']
+            },
+            {
+                id: 'aeroportosBR-c3uyet',
+                nome: 'Aeroporto',
+                identificadores: ['aeroporto']
+            },
+            {
+                id: 'baseFerroviariaBR-5wy7ld',
+                nome: 'Ferrovia',
+                identificadores: ['ferroviaria', 'ferrovia']
+            },
+            {
+                id: 'rodoviasBR202501A-10ccdk',
+                nome: 'Rodovia',
+                identificadores: ['rodovia']
+            }
+        ];
+
         // Quando o mapa carregar
         map.on('load', function() {
             console.log('Mapa carregado com sucesso!');
+
+            // Listar todas as camadas do mapa para debug
+            const layers = map.getStyle().layers;
+            console.log('Camadas disponíveis no mapa:', layers.map(layer => layer.id));
 
             // Adicionar um handler de clique para todo o mapa
             map.on('click', function(e) {
@@ -90,35 +148,38 @@
                 const feature = features[0];
                 console.log('Feature clicada:', feature);
 
-                // Determinar o tipo de camada
-                let tipoLayer = 'Camada';
+                // Debug info
+                document.getElementById('debug-info').textContent = 
+                    `Layer ID: ${feature.layer.id}, Source: ${feature.source}, Source Layer: ${feature.sourceLayer}`;
+                document.getElementById('debug-info').style.display = 'block';
 
-                // Identificar o tipo de camada com base no ID
-                if (feature.layer.id.includes('ucs_federais')) {
-                    tipoLayer = 'Unidade de Conservação Federal';
-                } else if (feature.layer.id.includes('tis_poligonais')) {
-                    tipoLayer = 'Terra Indígena';
-                } else if (feature.layer.id.includes('pasbr-geo')) {
-                    tipoLayer = 'Área Protegida';
-                } else if (feature.layer.id.includes('Hidroviaria')) {
-                    tipoLayer = 'Hidrovia';
-                } else if (feature.layer.id.includes('aeroportos')) {
-                    tipoLayer = 'Aeroporto';
-                } else if (feature.layer.id.includes('Ferroviaria')) {
-                    tipoLayer = 'Ferrovia';
-                } else if (feature.layer.id.includes('rodovias')) {
-                    tipoLayer = 'Rodovia';
+                // Determinar o tipo de camada
+                let tipoCamada = 'Camada Desconhecida';
+
+                // Verificar cada definição de camada
+                for (const camada of camadas) {
+                    // Verificar se algum dos identificadores está presente no ID da camada, source ou sourceLayer
+                    const matchesId = camada.identificadores.some(id => 
+                        (feature.layer.id && feature.layer.id.toLowerCase().includes(id.toLowerCase())) ||
+                        (feature.source && feature.source.toLowerCase().includes(id.toLowerCase())) ||
+                        (feature.sourceLayer && feature.sourceLayer.toLowerCase().includes(id.toLowerCase()))
+                    );
+
+                    if (matchesId) {
+                        tipoCamada = camada.nome;
+                        break;
+                    }
                 }
 
                 // Criar conteúdo HTML para o popup
-                let html = `<h3>${tipoLayer}</h3><div class="popup-content">`;
+                let html = `<h3>${tipoCamada}</h3><div class="popup-content">`;
 
                 // Adicionar todas as propriedades disponíveis
                 for (const key in feature.properties) {
                     if (feature.properties[key] && 
                         feature.properties[key] !== 'null' && 
                         feature.properties[key] !== '') {
-                        html += `<strong>${formatarNomePropriedade(key)}:</strong> ${feature.properties[key]}<br>`;
+                        html += `<strong>${formatarNomePropriedade(key)}:</strong> ${feature.properties[key]}`;
                     }
                 }
 
@@ -129,7 +190,7 @@
                     .setHTML(html)
                     .addTo(map);
 
-                console.log('Popup exibido para:', tipoLayer);
+                console.log('Popup exibido para:', tipoCamada);
             });
 
             // Mudar o cursor quando passar sobre elementos clicáveis
@@ -137,6 +198,11 @@
                 const features = map.queryRenderedFeatures(e.point);
                 map.getCanvas().style.cursor = features.length ? 'pointer' : '';
             });
+
+            // Esconder debug info após 10 segundos
+            setTimeout(function() {
+                document.getElementById('debug-info').style.display = 'none';
+            }, 10000);
         });
     </script>
 </body>
